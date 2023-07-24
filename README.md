@@ -1,3 +1,3 @@
 # Constellation
 
-A description of this package.
+Starline security system API wrapper

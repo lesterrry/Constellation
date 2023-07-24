@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Base.swift
 //  
 //
 //  Created by aydar.media on 24.07.2023.
@@ -14,15 +14,9 @@ struct Base {
         var message: String?
     }
     
-    private static var session: URLSession {
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 10.0
-        return URLSession(configuration: configuration)
-    }
-    
-    private static func getRequestFallback(url: URL) async throws -> (Data, URLResponse) {
+    private static func getRequestFallback(_ request: URLRequest) async throws -> (Data, URLResponse) {
         return try await withCheckedThrowingContinuation { continuation in
-            let task = Base.session.dataTask(with: url) { (data, response, error) in
+            let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
                 if let error = error {
                     continuation.resume(throwing: error)
                 } else if let data = data, let httpResponse = response {
@@ -35,17 +29,36 @@ struct Base {
         }
     }
     
-    public static func getRequest(url: URL) async throws -> (Int, Data) {
+    public static func request(url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil) async throws -> (Int, Data) {
+        var request = URLRequest(url: url)
+            
+        request.httpMethod = formData == nil ? "GET" : "POST"
+        
+        // Add headers
+        if headers != nil {
+            for (key, value) in headers! {
+                request.addValue(value, forHTTPHeaderField: key)
+            }
+        }
+        
+        // Set the form data
+        if formData != nil {
+            let bodyComponents = formData!.map { key, value in
+                return "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+            }
+            request.httpBody = bodyComponents.joined(separator: "&").data(using: .utf8)
+        }
+        
+        
+        // Configure timeout
+        request.timeoutInterval = 15.0
+        
         let (data, response): (Data, URLResponse)
         if #available(macOS 12.0, *) {
-            (data, response) = try await self.session.data(from: url)
+            (data, response) = try await URLSession.shared.data(for: request)
         } else {
-#if DEBUG
-            throw NetworkError()
-#endif
 #warning("no idea if it works")
-            // TODO: no idea if it works
-            (data, response) = try await getRequestFallback(url: url)
+            (data, response) = try await getRequestFallback(request)
         }
         
         guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError() }
@@ -53,13 +66,22 @@ struct Base {
         return (httpResponse.statusCode, data)
     }
     
-    public static func MD5(_ string: String) -> String {
+    public static func MD5(from string: String) -> String {
         let data = string.data(using: .utf8)!
             var digest = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
             data.withUnsafeBytes {
                 _ = CC_MD5($0.baseAddress, CC_LONG(data.count), &digest)
             }
             return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    public static func SHA1(from string: String) -> String {
+        let data = string.data(using: .utf8)!
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
+        data.withUnsafeBytes {
+            _ = CC_SHA1($0.baseAddress, CC_LONG(data.count), &digest)
+        }
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
     
 }

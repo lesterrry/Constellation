@@ -24,4 +24,10 @@ struct Endpoints {
             return URL(string: "https://id.starline.ru/apiV3/user/login")!
         }
     }
+    struct Json {
+        /// Getting SLNet token
+        public static var login: URL {
+            return URL(string: "https://developer.starline.ru/json/v2/auth.slid")!
+        }
+    }
 }

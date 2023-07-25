@@ -29,12 +29,12 @@ struct Base {
         }
     }
     
-    public static func request(url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil) async throws -> (Int, Data) {
+    public static func request(url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil) async throws -> (Int, Data) {
         var request = URLRequest(url: url)
             
-        request.httpMethod = formData == nil ? "GET" : "POST"
+        request.httpMethod = (formData == nil && jsonData == nil) ? "GET" : "POST"
         
-        // Add headers
+        // Set headers
         if headers != nil {
             for (key, value) in headers! {
                 request.addValue(value, forHTTPHeaderField: key)
@@ -47,10 +47,10 @@ struct Base {
                 return "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
             }
             request.httpBody = bodyComponents.joined(separator: "&").data(using: .utf8)
+        } else if jsonData != nil {
+            request.httpBody = try JSONSerialization.data(withJSONObject: jsonData!, options: [])
         }
         
-        
-        // Configure timeout
         request.timeoutInterval = 15.0
         
         let (data, response): (Data, URLResponse)

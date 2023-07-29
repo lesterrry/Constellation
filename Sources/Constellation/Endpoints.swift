@@ -29,5 +29,9 @@ struct Endpoints {
         public static var login: URL {
             return URL(string: "https://developer.starline.ru/json/v2/auth.slid")!
         }
+        /// Getting available devices
+        public static func userInfo(userID: String) -> URL {
+            return URL(string: "https://developer.starline.ru/json/v2/user/\(userID)/user_info")!
+        }
     }
 }

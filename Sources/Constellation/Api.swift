@@ -7,6 +7,10 @@
 
 import Foundation
 
+public struct User {
+    public let id: String
+}
+
 @available(macOS 10.15, *)
 public struct ApiClient {
     enum AuthError: Error {
@@ -18,6 +22,11 @@ public struct ApiClient {
         case apiError(String)
         case secondFactorRequired
         case schemeFailed
+        case unauthorized
+    }
+    
+    enum ApiRequestError: Error {
+        case dataNotReceived
     }
     
     private enum Prop {
@@ -27,22 +36,34 @@ public struct ApiClient {
         case slnetToken
     }
     
-    public private(set) var appID: String
-    public private(set) var appSecret: String
-    public private(set) var userLogin: String
-    public private(set) var userPassword: String
-    public private(set) var appCode: String?
-    public private(set) var appToken: String?
-    public private(set) var userToken: String?
-    public private(set) var slnetToken: String?
+    private var appID: String
+    private var appSecret: String
+    private var userLogin: String
+    private var userPassword: String
+    private var appCode: String?
+    private var appToken: String?
+    private var userToken: String?
+    private var slnetToken: String?
+    
+    public private(set) var authorizedUser: User?
     
     public init(appID: String, appSecret: String, userLogin: String, userPassword: String) {
         self.appID = appID
         self.appSecret = appSecret
         self.userLogin = userLogin
         self.userPassword = userPassword
+        
+        self.userToken = getUserTokenFromKeychain()
     }
     
+    public var hasUserToken: Bool {
+        return self.userToken != nil
+    }
+    
+    /// Performs a series of auth requests to Starline API, retrieving the main auth token
+    /// - Parameters:
+    ///   - smsCode: Optional value, should contain a valid SMS code if one was recieved as a second factor
+    ///   - completion: Result callback
     public mutating func auth(smsCode: String? = nil, completion: @escaping (Result<String, Error>) -> Void) async {
         func set(_ prop: Prop) async throws {
             switch prop {
@@ -62,21 +83,23 @@ public struct ApiClient {
                 let password = Base.SHA1(from: self.userPassword)
                 let headers = ["token": appToken]
                 var formData = ["login": self.userLogin, "pass": password]
-                if smsCode != nil { formData["smsCode"] = smsCode; print("Running with SMS Code") }
+                if smsCode != nil { formData["smsCode"] = smsCode }
                 let desc = try await slidRequest(to: Endpoints.User.login, headers: headers, formData: formData)
-                guard let userToken = desc.user_token else { throw AuthError.userTokenRequestError }
+                guard let userToken = desc.user_token, let userID = desc.id else { throw AuthError.userTokenRequestError }
                 self.userToken = userToken
+                self.authorizedUser = User(id: userID)
+                try saveUserTokenToKeychain()
             case .slnetToken:
                 guard let userToken = self.userToken else { throw AuthError.unexpectedNilCredential }
                 let headers = ["Content-Type": "application/json", "Accept": "application/json"]
                 let jsonData = ["slid_token": userToken]
                 let data = try await apiRequest(to: Endpoints.Json.login, headers: headers, jsonData: jsonData)
-                guard let slnetToken = data.realplexor_id else { throw AuthError.slnetTokenRequestError }
+                guard let slnetToken = data.realplexor_id, let userID = data.user_id else { throw AuthError.slnetTokenRequestError }
+                self.authorizedUser = User(id: userID)
                 self.slnetToken = slnetToken
             }
         }
-        
-        do {
+        func walkthrough() async throws {
             if self.appCode == nil { try await set(.appCode) }
 #if DEBUG
             print("Phase 1 pass: '\(self.appCode!)'")
@@ -91,29 +114,91 @@ public struct ApiClient {
 #endif
             if self.slnetToken == nil { try await set(.slnetToken) }
 #if DEBUG
-            print("Phase 4 pass: '\(self.slnetToken)'")
+            print("Phase 4 pass: '\(self.slnetToken!)'")
 #endif
+        }
+        @discardableResult func validate(_ prop: Prop) -> Bool {
+            switch prop {
+            case .appCode: return self.appCode != nil
+            case .appToken: return self.appToken != nil
+            case .userToken: return self.userToken != nil
+            case .slnetToken:
+                if let token = self.slnetToken { completion(.success(token)); return true } else { return false }
+            }
+        }
+        
+        do {
+            if validate(.slnetToken) { return }
+            self.userToken = getUserTokenFromKeychain()
+            if !validate(.userToken) { try await walkthrough() }
+            else { try await set(.slnetToken) }
         } catch {
             completion(.failure(error)); return
         }
         
-        if let slnetToken = self.slnetToken { completion(.success(slnetToken)) }
-        else { completion(.failure(AuthError.schemeFailed)) }
+        if !validate(.slnetToken) { completion(.failure(AuthError.schemeFailed)) }
+    }
+    
+    /// Sets the main auth token value to nil. Use if it's expired
+    public mutating func invalidateSlnetToken() {
+        self.slnetToken = nil
+    }
+    
+    /// Sets the user token value to nil, also tries to remove it from the keychain. Use if it's expired
+    public mutating func invalidateUserToken() {
+        self.userToken = nil
+        try? deleteUserTokenFromKeychain()
+    }
+    
+    /// Retrieves the list of currently available devices
+    public func getDevices() async throws -> [ApiResponse.Device] {
+        guard let token = self.slnetToken, let user = self.authorizedUser else { throw AuthError.unauthorized }
+        let url = Endpoints.Json.userInfo(userID: user.id)
+        let data = try await apiRequest(to: url, cookie: slnetCookie(token))
+        print(data)
+        guard let devices = data.devices else { throw ApiRequestError.dataNotReceived }
+        return devices
+    }
+    
+    private func slnetCookie(_ token: String) -> String {
+        return "slnet=\(token)"
+    }
+    
+    private func getUserTokenFromKeychain() -> String? {
+        // TODO: Instead of ommitting all possible exceptions I should check whether it's about the nonexistent val or smth else
+        return try? Keychain.getToken(account: KeychainEntity.Account.userToken.rawValue)
+    }
+    
+    private func saveUserTokenToKeychain() throws {
+        try Keychain.saveToken(self.userToken!, account: KeychainEntity.Account.userToken.rawValue)
+    }
+    
+    private func deleteUserTokenFromKeychain() throws {
+        try Keychain.deleteToken(account: KeychainEntity.Account.userToken.rawValue)
     }
     
     private func slidRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil) async throws -> SlidResponse.Desc {
         let response = try await Base.request(url: url, headers: headers, formData: formData, jsonData: jsonData)
         let data = try JSONDecoder().decode(SlidResponse.self, from: response.1)
         if data.state == 0 { throw AuthError.apiError(data.desc.message ?? "Unknown error") }
-        else if data.state == 2 { print(data.desc.message); throw AuthError.secondFactorRequired }
+        else if data.state == 2 { throw AuthError.secondFactorRequired }
         return data.desc
     }
     
-    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil) async throws -> ApiResponse {
+    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil, cookie: String? = nil) async throws -> ApiResponse {
+        var requestHeaders = headers
+        if let someCookie = cookie {
+            if requestHeaders != nil {
+                requestHeaders!["Cookie"] = someCookie
+            } else {
+                requestHeaders = ["Cookie": someCookie]
+            }
+        }
         let response = try await Base.request(url: url, headers: headers, formData: formData, jsonData: jsonData)
+        print(String(data: response.1, encoding: .utf8))
         let data = try JSONDecoder().decode(ApiResponse.self, from: response.1)
-        if data.code != 200 { throw AuthError.apiError("\(data.code): \(data.codestring)") }
+        if data.codestring != "OK" { throw AuthError.apiError(data.codestring) }
         return data
     }
-
+    
 }

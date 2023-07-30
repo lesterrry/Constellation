@@ -96,39 +96,45 @@ final class ConstellationTests: XCTestCase {
         
         XCTAssertNotNil(client.authorizedUser)
         
+        // Getting all devices
+        
         let deviceId: Int
         
-        do {
-            let devices = try await client.getDevicesForCurrentUser()
-
-            XCTAssertNotNil(devices)
-
-            os_log("Success: \(devices)")
-            
-            deviceId = devices[0].deviceId
-        } catch {
-            XCTFail("Error: \(error)"); return
+        let devices = await client.getDevicesForCurrentUser() { result in
+            switch result {
+            case .success(let devices):
+                os_log("Success: \(devices)")
+            case .failure(let error):
+                XCTFail("Error: \(error)")
+            }
         }
         
+        XCTAssertNotNil(devices)
         
-        do {
-            let data = try await client.getDeviceData(for: deviceId)
-            
-            os_log("Success: \(data)")
-            
-            if case ApiResponse.Data.device(let device) = data {
-                XCTAssertNotNil(device)
-                if let state = device.state, let door = state.door {
-                    os_log("Doors are \(door ? "open" : "closed")")
-                } else {
-                    os_log("No information about door state")
-                }
-            } else {
-                XCTFail("Data instance is not a Device")
+        deviceId = devices![0].deviceId
+        
+        // Getting device info
+        
+        let data = await client.getDeviceData(for: deviceId) { result in
+            switch result {
+            case .success(let device):
+                os_log("Success: \(device)")
+            case .failure(let error):
+                XCTFail("Error: \(error)")
             }
-
-        } catch {
-            XCTFail("Error: \(error)")
+        }
+        
+        XCTAssertNotNil(data)
+        
+        if case ApiResponse.Data.device(let device) = data! {
+            XCTAssertNotNil(device)
+            if let state = device.state, let door = state.door {
+                os_log("Doors are \(door ? "open" : "closed")")
+            } else {
+                os_log("No information about door state")
+            }
+        } else {
+            XCTFail("Data instance is not a Device")
         }
     }
 }

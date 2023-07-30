@@ -153,21 +153,27 @@ public struct ApiClient {
     }
     
     /// Retrieves the list of currently available devices for authorized user
-    public func getDevicesForCurrentUser() async throws -> [ApiResponse.Device] {
-        guard let token = self.slnetToken, let user = self.authorizedUser else { throw AuthError.unauthorized }
+    public func getDevicesForCurrentUser(completion: @escaping (Result<[ApiResponse.Device], Error>) -> Void) async -> [ApiResponse.Device]? {
+        guard let token = self.slnetToken, let user = self.authorizedUser else { completion(.failure(AuthError.unauthorized)); return nil }
         let url = Endpoints.Json.userInfo(userId: user.id)
-        let data = try await apiRequest(to: url, slnetToken: token)
-        guard let devices = data.devices else { throw ApiRequestError.dataNotReceived }
-        return devices
+        do {
+            let data = try await apiRequest(to: url, slnetToken: token)
+            guard let devices = data.devices else { completion(.failure(ApiRequestError.dataNotReceived)); return nil }
+            completion(.success(devices))
+            return devices
+        } catch { completion(.failure(error)); return nil }
     }
     
     /// Retrieves the data for a specific device
-    public func getDeviceData(for deviceId: Int) async throws -> ApiResponse.Data {
-        guard let token = self.slnetToken else { throw AuthError.unauthorized }
+    @discardableResult public func getDeviceData(for deviceId: Int, completion: @escaping (Result<ApiResponse.Data, Error>) -> Void) async -> ApiResponse.Data? {
+        guard let token = self.slnetToken else { completion(.failure(AuthError.unauthorized)); return nil }
         let url = Endpoints.Json.deviceData(deviceId: String(deviceId))
-        let data = try await apiRequest(to: url, slnetToken: token)
-        guard let device = data.data else { throw ApiRequestError.dataNotReceived }
-        return device
+        do {
+            let data = try await apiRequest(to: url, slnetToken: token)
+            guard let device = data.data else { completion(.failure(ApiRequestError.dataNotReceived)); return nil }
+            completion(.success(device))
+            return device
+        } catch { completion(.failure(error)); return nil }
     }
     
     private func getUserTokenFromKeychain() -> String? {

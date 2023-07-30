@@ -74,16 +74,26 @@ public struct ApiResponse: Decodable {
                 case running = "run"
             }
         }
+        public struct OBD: Decodable {
+            public let remainingDistance: Int?
+            
+            enum CodingKeys: String, CodingKey {
+                case remainingDistance = "dist_to_empty"
+            }
+        }
+        
         let deviceId: Int
         public let alias: String?
         public let common: Common?
         public let state: State?
+        public let obd: OBD?
         
         enum CodingKeys: String, CodingKey {
             case deviceId = "device_id"
             case alias = "alias"
             case common = "common"
             case state = "state"
+            case obd = "obd"
         }
     }
     

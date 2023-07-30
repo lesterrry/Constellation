@@ -202,7 +202,6 @@ public struct ApiClient {
             }
         }
         let response = try await Base.request(url: url, headers: headers, formData: formData, jsonData: jsonData)
-        print(String(data: response.1, encoding: .utf8))
         let data = try JSONDecoder().decode(ApiResponse.self, from: response.1)
         if data.codestring != "OK" { throw AuthError.apiError(data.codestring) }
         return data

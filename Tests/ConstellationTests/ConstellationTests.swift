@@ -121,7 +121,7 @@ final class ConstellationTests: XCTestCase {
                 if let state = device.state, let door = state.door {
                     os_log("Doors are \(door ? "open" : "closed")")
                 } else {
-                    os_log("No information abot door state")
+                    os_log("No information about door state")
                 }
             } else {
                 XCTFail("Data instance is not a Device")

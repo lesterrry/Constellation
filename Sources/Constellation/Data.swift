@@ -31,9 +31,9 @@ struct SlidResponse: Decodable {
 public struct ApiResponse: Decodable {
     public struct Device: Decodable {
         public struct Common: Decodable {
-            let battery: Float?
-            let gsmLevel: Float?
-            let gpsLevel: Float?
+            public let battery: Float?
+            public let gsmLevel: Float?
+            public let gpsLevel: Float?
             
             enum CodingKeys: String, CodingKey {
                 case battery = "battery"
@@ -42,20 +42,20 @@ public struct ApiResponse: Decodable {
             }
         }
         public struct State: Decodable {
-            let door: Bool?
-            let alarm: Bool?
-            let valet: Bool?
-            let stayHome: Bool?
-            let arm: Bool?
-            let parkingBrake: Bool?
-            let ignition: Bool?
-            let trunk: Bool?
-            let hood: Bool?
-            let hijack: Bool?
-            let additionalSensorBypass: Bool?
-            let shockBypass: Bool?
-            let tiltBypass: Bool?
-            let running: Bool?
+            public let door: Bool?
+            public let alarm: Bool?
+            public let valet: Bool?
+            public let stayHome: Bool?
+            public let arm: Bool?
+            public let parkingBrake: Bool?
+            public let ignition: Bool?
+            public let trunk: Bool?
+            public let hood: Bool?
+            public let hijack: Bool?
+            public let additionalSensorBypass: Bool?
+            public let shockBypass: Bool?
+            public let tiltBypass: Bool?
+            public let running: Bool?
             
             enum CodingKeys: String, CodingKey {
                 case door = "door"
@@ -75,9 +75,9 @@ public struct ApiResponse: Decodable {
             }
         }
         let deviceId: Int
-        let alias: String?
-        let common: Common?
-        let state: State?
+        public let alias: String?
+        public let common: Common?
+        public let state: State?
         
         enum CodingKeys: String, CodingKey {
             case deviceId = "device_id"
@@ -101,8 +101,8 @@ public struct ApiResponse: Decodable {
     let codestring: String
     let realplexorId: String?
     let userId: String?
-    let devices: [Device]?
-    let data: Data?
+    public let devices: [Device]?
+    public let data: Data?
     
     enum CodingKeys: String, CodingKey {
         case codestring = "codestring"

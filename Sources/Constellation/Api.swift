@@ -36,7 +36,7 @@ public struct ApiClient {
         case slnetToken
     }
     
-    private var appID: String
+    private var appId: String
     private var appSecret: String
     private var userLogin: String
     private var userPassword: String
@@ -45,10 +45,11 @@ public struct ApiClient {
     private var userToken: String?
     private var slnetToken: String?
     
+    /// Currently authorized User
     public private(set) var authorizedUser: User?
     
-    public init(appID: String, appSecret: String, userLogin: String, userPassword: String) {
-        self.appID = appID
+    public init(appId: String, appSecret: String, userLogin: String, userPassword: String) {
+        self.appId = appId
         self.appSecret = appSecret
         self.userLogin = userLogin
         self.userPassword = userPassword
@@ -56,6 +57,7 @@ public struct ApiClient {
         self.userToken = getUserTokenFromKeychain()
     }
     
+    /// Whether the user token is available for further auth
     public var hasUserToken: Bool {
         return self.userToken != nil
     }
@@ -69,13 +71,13 @@ public struct ApiClient {
             switch prop {
             case .appCode:
                 let secret = Base.MD5(from: self.appSecret)
-                let desc = try await slidRequest(to: Endpoints.Application.getCode(appID: self.appID, appSecret: secret))
+                let desc = try await slidRequest(to: Endpoints.Application.getCode(appId: self.appId, appSecret: secret))
                 guard let code = desc.code else { throw AuthError.appCodeRequestError }
                 self.appCode = code
             case .appToken:
                 guard let code = self.appCode else { throw AuthError.unexpectedNilCredential }
                 let secret = Base.MD5(from: self.appSecret + code)
-                let desc = try await slidRequest(to: Endpoints.Application.getToken(appID: self.appID, appSecret: secret))
+                let desc = try await slidRequest(to: Endpoints.Application.getToken(appId: self.appId, appSecret: secret))
                 guard let token = desc.token else { throw AuthError.appTokenRequestError }
                 self.appToken = token
             case .userToken:
@@ -85,17 +87,17 @@ public struct ApiClient {
                 var formData = ["login": self.userLogin, "pass": password]
                 if smsCode != nil { formData["smsCode"] = smsCode }
                 let desc = try await slidRequest(to: Endpoints.User.login, headers: headers, formData: formData)
-                guard let userToken = desc.user_token, let userID = desc.id else { throw AuthError.userTokenRequestError }
+                guard let userToken = desc.userToken, let userId = desc.id else { throw AuthError.userTokenRequestError }
                 self.userToken = userToken
-                self.authorizedUser = User(id: userID)
+                self.authorizedUser = User(id: userId)
                 try saveUserTokenToKeychain()
             case .slnetToken:
                 guard let userToken = self.userToken else { throw AuthError.unexpectedNilCredential }
                 let headers = ["Content-Type": "application/json", "Accept": "application/json"]
                 let jsonData = ["slid_token": userToken]
                 let data = try await apiRequest(to: Endpoints.Json.login, headers: headers, jsonData: jsonData)
-                guard let slnetToken = data.realplexor_id, let userID = data.user_id else { throw AuthError.slnetTokenRequestError }
-                self.authorizedUser = User(id: userID)
+                guard let slnetToken = data.realplexorId, let userId = data.userId else { throw AuthError.slnetTokenRequestError }
+                self.authorizedUser = User(id: userId)
                 self.slnetToken = slnetToken
             }
         }
@@ -150,18 +152,22 @@ public struct ApiClient {
         try? deleteUserTokenFromKeychain()
     }
     
-    /// Retrieves the list of currently available devices
-    public func getDevices() async throws -> [ApiResponse.Device] {
+    /// Retrieves the list of currently available devices for authorized user
+    public func getDevicesForCurrentUser() async throws -> [ApiResponse.Device] {
         guard let token = self.slnetToken, let user = self.authorizedUser else { throw AuthError.unauthorized }
-        let url = Endpoints.Json.userInfo(userID: user.id)
-        let data = try await apiRequest(to: url, cookie: slnetCookie(token))
-        print(data)
+        let url = Endpoints.Json.userInfo(userId: user.id)
+        let data = try await apiRequest(to: url, slnetToken: token)
         guard let devices = data.devices else { throw ApiRequestError.dataNotReceived }
         return devices
     }
     
-    private func slnetCookie(_ token: String) -> String {
-        return "slnet=\(token)"
+    /// Retrieves the data for a specific device
+    public func getDeviceData(for deviceId: Int) async throws -> ApiResponse.Data {
+        guard let token = self.slnetToken else { throw AuthError.unauthorized }
+        let url = Endpoints.Json.deviceData(deviceId: String(deviceId))
+        let data = try await apiRequest(to: url, slnetToken: token)
+        guard let device = data.data else { throw ApiRequestError.dataNotReceived }
+        return device
     }
     
     private func getUserTokenFromKeychain() -> String? {
@@ -185,13 +191,14 @@ public struct ApiClient {
         return data.desc
     }
     
-    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil, cookie: String? = nil) async throws -> ApiResponse {
+    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil, slnetToken: String? = nil) async throws -> ApiResponse {
         var requestHeaders = headers
-        if let someCookie = cookie {
+        if let token = slnetToken {
+            let cookie = "slnet=\(token)"
             if requestHeaders != nil {
-                requestHeaders!["Cookie"] = someCookie
+                requestHeaders!["Cookie"] = cookie
             } else {
-                requestHeaders = ["Cookie": someCookie]
+                requestHeaders = ["Cookie": cookie]
             }
         }
         let response = try await Base.request(url: url, headers: headers, formData: formData, jsonData: jsonData)

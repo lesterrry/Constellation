@@ -13,13 +13,13 @@ import OSLog
 
 final class ConstellationTests: XCTestCase {
     func testPlainAuth() async {
-        guard let appID = ProcessInfo.processInfo.environment["SL_APPID"],
+        guard let appId = ProcessInfo.processInfo.environment["SL_APPID"],
               let appSecret = ProcessInfo.processInfo.environment["SL_APPSECRET"],
               let userLogin = ProcessInfo.processInfo.environment["SL_USERLOGIN"],
               let userPassword = ProcessInfo.processInfo.environment["SL_USERPASSWORD"]
         else { XCTFail("One or more env vars not set"); return }
 
-        var client = ApiClient(appID: appID, appSecret: appSecret, userLogin: userLogin, userPassword: userPassword)
+        var client = ApiClient(appId: appId, appSecret: appSecret, userLogin: userLogin, userPassword: userPassword)
         var smsCode: String? = nil
         
         let group = DispatchGroup()
@@ -77,13 +77,13 @@ final class ConstellationTests: XCTestCase {
     
     // Note: this test assumes the user token is already stored in keychain
     func testBasicRequest() async {
-        guard let appID = ProcessInfo.processInfo.environment["SL_APPID"],
+        guard let appId = ProcessInfo.processInfo.environment["SL_APPID"],
               let appSecret = ProcessInfo.processInfo.environment["SL_APPSECRET"],
               let userLogin = ProcessInfo.processInfo.environment["SL_USERLOGIN"],
               let userPassword = ProcessInfo.processInfo.environment["SL_USERPASSWORD"]
         else { XCTFail("One or more env vars not set"); return }
 
-        var client = ApiClient(appID: appID, appSecret: appSecret, userLogin: userLogin, userPassword: userPassword)
+        var client = ApiClient(appId: appId, appSecret: appSecret, userLogin: userLogin, userPassword: userPassword)
         
         XCTAssert(client.hasUserToken)
         
@@ -96,14 +96,37 @@ final class ConstellationTests: XCTestCase {
         
         XCTAssertNotNil(client.authorizedUser)
         
-        let devices: [ApiResponse.Device]
+        let deviceId: Int
         
         do {
-            devices = try await client.getDevices()
-            
+            let devices = try await client.getDevicesForCurrentUser()
+
             XCTAssertNotNil(devices)
-            
+
             os_log("Success: \(devices)")
+            
+            deviceId = devices[0].deviceId
+        } catch {
+            XCTFail("Error: \(error)"); return
+        }
+        
+        
+        do {
+            let data = try await client.getDeviceData(for: deviceId)
+            
+            os_log("Success: \(data)")
+            
+            if case ApiResponse.Data.device(let device) = data {
+                XCTAssertNotNil(device)
+                if let state = device.state, let door = state.door {
+                    os_log("Doors are \(door ? "open" : "closed")")
+                } else {
+                    os_log("No information abot door state")
+                }
+            } else {
+                XCTFail("Data instance is not a Device")
+            }
+
         } catch {
             XCTFail("Error: \(error)")
         }

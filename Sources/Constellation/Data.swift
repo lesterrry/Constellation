@@ -34,13 +34,15 @@ public struct ApiResponse: Decodable {
             public let battery: Float?
             public let gsmLevel: Float?
             public let gpsLevel: Float?
-            public let exteriorTemperature: Float?
+            public let engineTemperature: Float?
+            public let moduleTemperature: Float?
             
             enum CodingKeys: String, CodingKey {
                 case battery = "battery"
                 case gsmLevel = "gsm_lvl"
                 case gpsLevel = "gps_lvl"
-                case exteriorTemperature = "etemp"
+                case engineTemperature = "etemp"
+                case moduleTemperature = "ctemp"
             }
         }
         public struct State: Decodable {

@@ -6,11 +6,6 @@
 //
 
 import Foundation
-import Security
-
-struct SecurityError: Error {
-    var message: String?
-}
 
 struct KeychainEntity {
     public static let serviceName = "com.aydarmedia.constellation"

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import KeychainBridge
 
 public struct User {
     public let id: String
@@ -48,11 +49,16 @@ public struct ApiClient {
     /// Currently authorized User
     public private(set) var authorizedUser: User?
     
+    /// KeychainBridge object used to manipulate secrets
+    public let keychainBridge: Keychain
+    
     public init(appId: String, appSecret: String, userLogin: String, userPassword: String) {
         self.appId = appId
         self.appSecret = appSecret
         self.userLogin = userLogin
         self.userPassword = userPassword
+        
+        self.keychainBridge = Keychain(serviceName: "com.aydarmedia.constellation")
         
         self.userToken = getUserTokenFromKeychain()
     }
@@ -178,15 +184,15 @@ public struct ApiClient {
     
     private func getUserTokenFromKeychain() -> String? {
         // TODO: Instead of ommitting all possible exceptions I should check whether it's about the nonexistent val or smth else
-        return try? Keychain.getToken(account: KeychainEntity.Account.userToken.rawValue)
+        return try? self.keychainBridge.getToken(account: KeychainEntity.Account.userToken.rawValue)
     }
     
     private func saveUserTokenToKeychain() throws {
-        try Keychain.saveToken(self.userToken!, account: KeychainEntity.Account.userToken.rawValue)
+        try self.keychainBridge.saveToken(self.userToken!, account: KeychainEntity.Account.userToken.rawValue)
     }
     
     private func deleteUserTokenFromKeychain() throws {
-        try Keychain.deleteToken(account: KeychainEntity.Account.userToken.rawValue)
+        try self.keychainBridge.deleteToken(account: KeychainEntity.Account.userToken.rawValue)
     }
     
     private func slidRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil) async throws -> SlidResponse.Desc {

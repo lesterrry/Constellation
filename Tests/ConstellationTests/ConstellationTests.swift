@@ -59,22 +59,6 @@ final class ConstellationTests: XCTestCase {
         XCTAssertNotNil(client.authorizedUser)
     }
     
-    func testKeychain() {
-        let token = "123:456"
-        let account = "TEST"
-        
-        XCTAssertNoThrow(try Keychain.saveToken(token, account: account))
-        
-        var recovered: String? = nil
-        XCTAssertNoThrow(recovered = try Keychain.getToken(account: account))
-        
-        XCTAssertEqual(token, recovered)
-        
-        XCTAssertNoThrow(try Keychain.deleteToken(account: account))
-        
-        XCTAssertThrowsError(try Keychain.getToken(account: account))
-    }
-    
     // Note: this test assumes the user token is already stored in keychain
     func testBasicRequest() async {
         guard let appId = ProcessInfo.processInfo.environment["SL_APPID"],

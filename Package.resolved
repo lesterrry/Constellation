@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "keychainbridge",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lesterrry/keychainbridge",
+      "state" : {
+        "revision" : "f996853845e31f6103433301663516e02d151900",
+        "version" : "0.1.1"
+      }
+    }
+  ],
+  "version" : 2
+}

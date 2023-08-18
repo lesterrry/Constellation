@@ -5,8 +5,6 @@
 //  Created by aydar.media on 29.07.2023.
 //
 
-import Foundation
-
 struct KeychainEntity {
     public static let serviceName = "com.aydarmedia.constellation"
     public enum Account: String {

@@ -15,6 +15,7 @@ public struct User {
 @available(macOS 10.15, *)
 public struct ApiClient {
     enum AuthError: Error {
+        case noCredentials
         case appCodeRequestError
         case appTokenRequestError
         case userTokenRequestError
@@ -39,12 +40,12 @@ public struct ApiClient {
     
     private var appId: String
     private var appSecret: String
-    private var userLogin: String
-    private var userPassword: String
     private var appCode: String?
     private var appToken: String?
     private var userToken: String?
     private var slnetToken: String?
+    var userLogin: String?
+    var userPassword: String?
     
     /// Currently authorized User
     public private(set) var authorizedUser: User?
@@ -52,7 +53,7 @@ public struct ApiClient {
     /// KeychainBridge object used to manipulate secrets
     public let keychainBridge: Keychain
     
-    public init(appId: String, appSecret: String, userLogin: String, userPassword: String) {
+    public init(appId: String, appSecret: String, userLogin: String? = nil, userPassword: String? = nil) {
         self.appId = appId
         self.appSecret = appSecret
         self.userLogin = userLogin
@@ -73,6 +74,9 @@ public struct ApiClient {
     ///   - smsCode: Optional value, should contain a valid SMS code if one was recieved as a second factor
     ///   - completion: Result callback
     public mutating func auth(smsCode: String? = nil, completion: @escaping (Result<String, Error>) -> Void) async {
+        guard self.userLogin != nil, self.userPassword != nil else {
+            completion(.failure(AuthError.noCredentials)); return
+        }
         func set(_ prop: Prop) async throws {
             switch prop {
             case .appCode:
@@ -88,9 +92,9 @@ public struct ApiClient {
                 self.appToken = token
             case .userToken:
                 guard let appToken = self.appToken else { throw AuthError.unexpectedNilCredential }
-                let password = Base.SHA1(from: self.userPassword)
+                let password = Base.SHA1(from: self.userPassword!)
                 let headers = ["token": appToken]
-                var formData = ["login": self.userLogin, "pass": password]
+                var formData = ["login": self.userLogin!, "pass": password]
                 if smsCode != nil { formData["smsCode"] = smsCode }
                 let desc = try await slidRequest(to: Endpoints.User.login, headers: headers, formData: formData)
                 guard let userToken = desc.userToken, let userId = desc.id else { throw AuthError.userTokenRequestError }

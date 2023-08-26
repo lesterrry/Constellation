@@ -44,8 +44,8 @@ public struct ApiClient {
     private var appToken: String?
     private var userToken: String?
     private var slnetToken: String?
-    var userLogin: String?
-    var userPassword: String?
+    private var userLogin: String?
+    private var userPassword: String?
     
     /// Currently authorized User
     public private(set) var authorizedUser: User?
@@ -67,6 +67,15 @@ public struct ApiClient {
     /// Whether the user token is available for further auth
     public var hasUserToken: Bool {
         return self.userToken != nil
+    }
+    
+    /// Add credentials to client
+    /// - Parameters:
+    ///   - login: User login
+    ///   - password: User password
+    public mutating func setCredentials(login: String? = nil, password: String? = nil) {
+        self.userLogin = login
+        self.userPassword = password
     }
     
     /// Performs a series of auth requests to Starline API, retrieving the main auth token

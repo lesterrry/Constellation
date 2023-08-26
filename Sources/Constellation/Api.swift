@@ -14,7 +14,7 @@ public struct User {
 
 @available(macOS 10.15, *)
 public struct ApiClient {
-    enum AuthError: Error {
+    public enum AuthError: Error {
         case noCredentials
         case appCodeRequestError
         case appTokenRequestError
@@ -122,21 +122,9 @@ public struct ApiClient {
         }
         func walkthrough() async throws {
             if self.appCode == nil { try await set(.appCode) }
-#if DEBUG
-            print("Phase 1 pass: '\(self.appCode!)'")
-#endif
             if self.appToken == nil { try await set(.appToken) }
-#if DEBUG
-            print("Phase 2 pass: '\(self.appToken!)'")
-#endif
             if self.userToken == nil { try await set(.userToken) }
-#if DEBUG
-            print("Phase 3 pass: '\(self.userToken!)'")
-#endif
             if self.slnetToken == nil { try await set(.slnetToken) }
-#if DEBUG
-            print("Phase 4 pass: '\(self.slnetToken!)'")
-#endif
         }
         @discardableResult func validate(_ prop: Prop) -> Bool {
             switch prop {

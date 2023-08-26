@@ -83,9 +83,6 @@ public struct ApiClient {
     ///   - smsCode: Optional value, should contain a valid SMS code if one was recieved as a second factor
     ///   - completion: Result callback
     public mutating func auth(smsCode: String? = nil, completion: @escaping (Result<String, Error>) -> Void) async {
-        guard self.userLogin != nil, self.userPassword != nil else {
-            completion(.failure(AuthError.noCredentials)); return
-        }
         func set(_ prop: Prop) async throws {
             switch prop {
             case .appCode:
@@ -100,6 +97,7 @@ public struct ApiClient {
                 guard let token = desc.token else { throw AuthError.appTokenRequestError }
                 self.appToken = token
             case .userToken:
+                guard self.userLogin != nil, self.userPassword != nil else { completion(.failure(AuthError.noCredentials)); return }
                 guard let appToken = self.appToken else { throw AuthError.unexpectedNilCredential }
                 let password = Base.SHA1(from: self.userPassword!)
                 let headers = ["token": appToken]

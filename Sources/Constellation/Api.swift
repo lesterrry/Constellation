@@ -158,6 +158,7 @@ public struct ApiClient {
     }
     
     /// Retrieves the list of currently available devices for authorized user
+    @discardableResult 
     public func getDevicesForCurrentUser(completion: @escaping (Result<[ApiResponse.Device], Error>) -> Void) async -> [ApiResponse.Device]? {
         guard let token = self.slnetToken, let user = self.authorizedUser else { completion(.failure(AuthError.unauthorized)); return nil }
         let url = Endpoints.Json.userInfo(userId: user.id)
@@ -170,7 +171,8 @@ public struct ApiClient {
     }
     
     /// Retrieves the data for a specific device
-    @discardableResult public func getDeviceData(for deviceId: Int, completion: @escaping (Result<ApiResponse.Data, Error>) -> Void) async -> ApiResponse.Data? {
+    @discardableResult
+    public func getDeviceData(for deviceId: Int, completion: @escaping (Result<ApiResponse.Data, Error>) -> Void) async -> ApiResponse.Data? {
         guard let token = self.slnetToken else { completion(.failure(AuthError.unauthorized)); return nil }
         let url = Endpoints.Json.deviceData(deviceId: String(deviceId))
         do {

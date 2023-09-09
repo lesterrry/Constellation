@@ -86,7 +86,7 @@ public struct ApiResponse: Decodable {
             }
         }
         
-        let deviceId: Int
+        public let deviceId: Int
         public let alias: String?
         public let common: Common?
         public let state: State?

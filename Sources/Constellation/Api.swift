@@ -29,6 +29,7 @@ public struct ApiClient {
     
     enum ApiRequestError: Error {
         case dataNotReceived
+        case unexpectedError(String)
     }
     
     private enum Prop {
@@ -237,7 +238,7 @@ public struct ApiClient {
         }
         let response = try await Base.request(url: url, headers: headers, formData: formData, jsonData: jsonData)
         let data = try JSONDecoder().decode(ApiResponse.self, from: response.1)
-        if data.codestring != "OK" { throw AuthError.apiError(data.codestring) }
+        if data.codestring != "OK" { throw ApiRequestError.unexpectedError(data.codestring) }
         return data
     }
     

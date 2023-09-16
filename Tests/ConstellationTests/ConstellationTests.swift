@@ -121,4 +121,35 @@ final class ConstellationTests: XCTestCase {
             XCTFail("Data instance is not a Device")
         }
     }
+    
+    func testHonk() async {
+        guard let appId = ProcessInfo.processInfo.environment["SL_APPID"],
+              let appSecret = ProcessInfo.processInfo.environment["SL_APPSECRET"],
+              let deviceId = ProcessInfo.processInfo.environment["SL_DEVICEID"]
+        else { XCTFail("One or more env vars not set"); return }
+
+        var client = ApiClient(appId: appId, appSecret: appSecret)
+        
+        XCTAssert(client.hasUserToken)
+        
+        await client.auth() { result in
+            if case .failure(let error) = result {
+                XCTFail(String(describing: error))
+                return
+            }
+        }
+        
+        XCTAssertNotNil(client.authorizedUser)
+        
+        // Time to honk
+        
+        await client.runCommand(.honk, on: Int(deviceId)!) { result in
+            switch result {
+            case .success():
+                os_log("Success")
+            case .failure(let error):
+                XCTFail("Error: \(error)")
+            }
+        }
+    }
 }

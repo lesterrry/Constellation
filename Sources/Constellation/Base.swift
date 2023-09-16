@@ -29,7 +29,7 @@ struct Base {
         }
     }
     
-    public static func request(url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil) async throws -> (Int, Data) {
+    public static func request(url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: Any]? = nil) async throws -> (Int, Data) {
         var request = URLRequest(url: url)
             
         request.httpMethod = (formData == nil && jsonData == nil) ? "GET" : "POST"

@@ -38,6 +38,15 @@ public struct ApiClient {
         case slnetToken
     }
     
+    /// Raw commands accepted by Starline API
+    public enum Command: String {
+        case arm = "arm_start"
+        case disarm = "arm_stop"
+        case ignitionStart = "ign_start"
+        case ignitionStop = "ign_stop"
+        case honk = "poke"
+    }
+    
     private var appId: String
     private var appSecret: String
     private var appCode: String?
@@ -183,6 +192,18 @@ public struct ApiClient {
         } catch { completion(.failure(error)); return nil }
     }
     
+    /// Runs a specific command on the device
+    public func runCommand(_ command: Command, on deviceId: Int, completion: @escaping (Result<(), Error>) -> Void) async {
+        guard let token = self.slnetToken else { completion(.failure(AuthError.unauthorized)); return }
+        let url = Endpoints.Json.setParam(deviceId: String(deviceId))
+        let requestData = ApiRequest.getParamsSettingRequestBody(for: command.rawValue)
+        do {
+            let data = try await apiRequest(to: url, jsonData: requestData, slnetToken: token)
+            print(data)
+            completion(.success(()))
+        } catch { completion(.failure(error)) }
+    }
+    
     private func getUserTokenFromKeychain() -> String? {
         // TODO: Instead of ommitting all possible exceptions I should check whether it's about the nonexistent val or smth else
         return try? self.keychainBridge.getToken(account: KeychainEntity.Account.userToken.rawValue)
@@ -204,7 +225,7 @@ public struct ApiClient {
         return data.desc
     }
     
-    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: String]? = nil, slnetToken: String? = nil) async throws -> ApiResponse {
+    private func apiRequest(to url: URL, headers: [String: String]? = nil, formData: [String: String]? = nil, jsonData: [String: Any]? = nil, slnetToken: String? = nil) async throws -> ApiResponse {
         var requestHeaders = headers
         if let token = slnetToken {
             let cookie = "slnet=\(token)"

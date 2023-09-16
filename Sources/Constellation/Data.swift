@@ -7,6 +7,16 @@
 
 import Foundation
 
+struct ApiRequest {
+    // TODO: This could probably be better typed
+    public static func getParamsSettingRequestBody(for type: String) -> [String : Any] {
+        return [
+            "type": type,
+            type: 1
+        ]
+    }
+}
+
 struct SlidResponse: Decodable {
     struct Desc: Decodable {
         let id: String?

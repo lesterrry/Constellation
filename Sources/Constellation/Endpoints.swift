@@ -37,5 +37,9 @@ struct Endpoints {
         public static func deviceData(deviceId: String) -> URL {
             return URL(string: "https://developer.starline.ru/json/v3/device/\(deviceId)/data")!
         }
+        /// Setting device parameter
+        public static func setParam(deviceId: String) -> URL {
+            return URL(string: "https://developer.starline.ru/json/v1/device/\(deviceId)/set_param")!
+        }
     }
 }

@@ -200,7 +200,6 @@ public struct ApiClient {
         let requestData = ApiRequest.getParamsSettingRequestBody(for: command.rawValue)
         do {
             let data = try await apiRequest(to: url, jsonData: requestData, slnetToken: token)
-            print(data)
             completion(.success(()))
         } catch { completion(.failure(error)) }
     }

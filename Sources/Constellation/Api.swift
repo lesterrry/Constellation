@@ -27,7 +27,7 @@ public struct ApiClient {
         case unauthorized
     }
     
-    enum ApiRequestError: Error {
+    public enum ApiRequestError: Error {
         case dataNotReceived
         case unexpectedError(String)
     }
